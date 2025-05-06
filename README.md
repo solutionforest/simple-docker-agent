@@ -17,8 +17,8 @@ A lightweight Python-based agent that provides real-time monitoring of Docker co
 ### 1. Build the Agent Docker Image
 
 ```bash
-git clone <your-repo-url>
-cd <your-repo-directory>
+git clone https://github.com/solutionforest/simple-docker-agent
+cd simple-docker-agent
 docker build -t simple-docker-agent .
 ```
 
