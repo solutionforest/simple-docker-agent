@@ -2,9 +2,8 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - '*'
 
 jobs:
   build-and-push:
@@ -28,4 +27,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: solutionforest/simple-docker-agent:latest
+          tags: |
+            solutionforest/simple-docker-agent:${{ github.ref_name }}
+            solutionforest/simple-docker-agent:latest
