@@ -16,7 +16,41 @@ A lightweight Python-based agent that provides real-time monitoring of Docker co
 
 ## Quick Start
 
-### 1. Build the Agent Docker Image
+## Run from Docker Hub (method 1)
+
+You can run the latest public version of **Simple Docker Agent** directly from Docker Hub, with no need to build the image yourself.
+
+```bash
+docker pull solutionforest/simple-docker-agent:latest
+
+docker run -d \
+  --name simple-docker-agent \
+  -p 8080:8080 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --privileged \
+  solutionforest/simple-docker-agent:latest
+```
+
+- The agent will now be accessible at [http://localhost:8080/status](http://localhost:8080/status).
+- Make sure to mount the Docker socket (`-v /var/run/docker.sock:/var/run/docker.sock`) to allow the agent to access container information.
+- The `--privileged` flag may be required for collecting some host metrics.
+
+You can also specify a version instead of `latest`, for example:
+
+```bash
+docker pull solutionforest/simple-docker-agent:1.0.0
+docker run -d \
+  --name simple-docker-agent \
+  -p 8080:8080 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --privileged \
+  solutionforest/simple-docker-agent:1.0.0
+```
+
+**See [solutionforest/simple-docker-agent on Docker Hub](https://hub.docker.com/r/solutionforest/simple-docker-agent) for available tags and more info.**
+
+
+### 1. Build the Agent Docker Image (method 2)
 
 ```bash
 git clone https://github.com/solutionforest/simple-docker-agent
