@@ -1,3 +1,5 @@
+![image](https://github.com/user-attachments/assets/c6066ec1-a2d8-4d66-b925-6405558d08e3)
+
 # Simple Docker Agent
 
 A lightweight Python-based agent that provides real-time monitoring of Docker containers and host system resources.
