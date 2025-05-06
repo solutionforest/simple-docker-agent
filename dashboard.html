@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Simple Docker Agent Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: #23252b;
+      color: #eee;
+      font-family: Arial,sans-serif;
+      margin: 0;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 24px 10px 32px 10px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    .card {
+      flex: 1 1 210px;
+      background: #292b34;
+      border-radius: 12px;
+      padding: 17px 0 17px 0;
+      min-width: 170px;
+      min-height: 90px;
+      text-align: center;
+      box-shadow: 1px 2px 10px #0003;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .storage-card {
+      width: 100%;
+      margin: 0;
+      background: #25262c;
+      border-radius: 12px;
+      padding: 18px 0;
+      min-height: 50px;
+      font-size: 1.3em;
+      margin-bottom: 25px;
+      text-align: center;
+      margin-top: 8px;
+    }
+    .label {
+      font-size: 1.05em;
+      color: #ccc;
+      margin-bottom: 4px;
+    }
+    .value {
+      font-size: 1.7em;
+      font-weight: bold;
+      color: #fff;
+    }
+    .charts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 32px;
+      justify-content: center;
+      margin-bottom: 38px;
+    }
+    .chartbox {
+      background: #25262c;
+      border-radius: 12px;
+      padding: 18px 10px 10px 10px;
+      margin-bottom: 10px;
+      width: 560px;
+      max-width: 100%;
+      box-sizing: border-box;
+      box-shadow: 1px 2px 10px #0002;
+    }
+    .subtitle {
+      color: #fdc13a;
+      font-size: 1.08em;
+      font-weight: bold;
+      margin: 8px 0 8px 0;
+    }
+    .subline {
+      font-size: 0.97em;
+      color: #ccc;
+      margin-bottom: 8px;
+    }
+    .container-select {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 12px 0;
+      justify-content: flex-end;
+    }
+    .container-select label {
+      font-size: 1.08em;
+      color: #fdc13a;
+      font-weight: bold;
+    }
+    .container-select select {
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+      padding: 3px 9px;
+      background: #191a1f;
+      color: #fdc13a;
+    }
+    .c-cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: flex-start;
+      margin-bottom: 6px;
+    }
+    .c-card {
+      flex: 1 1 200px;
+      background: #292b34;
+      border-radius: 10px;
+      padding: 11px 4px 11px 4px;
+      min-width: 145px;
+      min-height: 50px;
+      text-align: center;
+      font-size: 1.05em;
+    }
+    .c-label {
+      color: #bbb;
+      font-size: 0.98em;
+    }
+    .c-value {
+      color: #fff;
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+    @media (max-width: 900px) {
+      .cards, .charts, .c-cards { flex-direction: column; align-items: stretch; }
+      .card, .chartbox, .storage-card, .c-card { width: 100% !important; min-width: 0; }
+      .chartbox { margin-left: 0; margin-right: 0; }
+    }
+    @media (max-width: 600px) {
+      .container { padding: 7px 2px 30px 2px;}
+      h1 {font-size: 1.1rem;}
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Simple Docker Agent Dashboard</h1>
+  <div class="cards" id="host-cards">
+    <div class="card">
+      <div class="label">Uptime</div>
+      <div class="value" id="uptime">--</div>
+    </div>
+    <div class="card">
+      <div class="label">CPU Idle %</div>
+      <div class="value" id="cpu_idle">--</div>
+    </div>
+    <div class="card">
+      <div class="label">CPU Cores</div>
+      <div class="value" id="cpu_cores">--</div>
+    </div>
+    <div class="card">
+      <div class="label">Memory (used/total)</div>
+      <div class="value" id="mem">--</div>
+    </div>
+    <div class="card">
+      <div class="label">Swap (used/total)</div>
+      <div class="value" id="swap">--</div>
+    </div>
+  </div>
+  <div class="storage-card">
+    Storage (used/total): <span id="disk">--</span>
+  </div>
+
+  <!-- System Charts -->
+  <div class="charts">
+    <div class="chartbox">
+      <div class="subtitle">System Load Avg / Running / Blocked / Interrupts</div>
+      <div class="subline">1min, 5min, 15min load average; running/block IO procs; interrupts</div>
+      <canvas id="load_chart" height="170"></canvas>
+    </div>
+    <div class="chartbox">
+      <div class="subtitle">CPU Mode Usage %</div>
+      <div class="subline">guest, idle, iowait, irq, nice, softirq, steal, system, user</div>
+      <canvas id="cpu_mode_chart" height="170"></canvas>
+    </div>
+    <div class="chartbox">
+      <div class="subtitle">Memory Usage Distribution (MB)</div>
+      <div class="subline">used, free, buffers, cached</div>
+      <canvas id="mem_chart" height="170"></canvas>
+    </div>
+    <div class="chartbox">
+      <div class="subtitle">Disk IO (Bps)</div>
+      <div class="subline">Read/write Bps and IO time (ms)</div>
+      <canvas id="diskio_chart" height="170"></canvas>
+    </div>
+    <div class="chartbox">
+      <div class="subtitle">Network Usage (Bps per device)</div>
+      <div class="subline">Inbound/outbound Bps, per network device</div>
+      <canvas id="net_chart" height="170"></canvas>
+    </div>
+    <div class="chartbox">
+      <div class="subtitle">Swap Usage (MB) and Activity (Bps)</div>
+      <div class="subline">Swap used/free; swap in/out speed</div>
+      <canvas id="swap_chart" height="170"></canvas>
+    </div>
+  </div>
+
+  <!-- Container Switcher -->
+  <div class="container-select">
+    <label for="container_select">Container:</label>
+    <select id="container_select"></select>
+  </div>
+  <div id="container_content" style="margin-bottom:18px;">
+    <div class="c-cards" id="container-cards"></div>
+    <div class="charts">
+      <div class="chartbox">
+        <div class="subtitle">Container CPU %</div>
+        <canvas id="c_cpu_chart" height="140"></canvas>
+      </div>
+      <div class="chartbox">
+        <div class="subtitle">Container Memory (MB)</div>
+        <canvas id="c_mem_chart" height="140"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const HISTORY_LEN = 60; // 5-min @5s
+const LS_KEY = 'docker-agent-dashboard-cache-v2';
+
+// --- System history ---
+let loadHistory=[],runHistory=[],blkioHistory=[],intrHistory=[];
+let cpuModeHist=[],memHist=[],diskioHist=[],netHist=[],swapHist=[],swapioHist=[];
+let lastDiskIO=null,lastNetIO=null,lastSwap=null,lastTime=null;
+
+// --- Container histories: {container_id: {cpu:[],mem:[]}}
+let containerHistories = {};
+
+// --- Chart.js instances ---
+let loadChart, cpuModeChart, memChart, diskioChart, netChart, swapChart, cCpuChart, cMemChart;
+
+// Restore cache
+function restoreCache() {
+  try {
+    let cache = localStorage.getItem(LS_KEY);
+    if (!cache) return;
+    let d = JSON.parse(cache);
+    loadHistory = d.loadHistory||[];
+    runHistory = d.runHistory||[];
+    blkioHistory = d.blkioHistory||[];
+    intrHistory = d.intrHistory||[];
+    cpuModeHist = d.cpuModeHist||[];
+    memHist = d.memHist||[];
+    diskioHist = d.diskioHist||[];
+    netHist = d.netHist||[];
+    swapHist = d.swapHist||[];
+    swapioHist = d.swapioHist||[];
+    lastDiskIO = d.lastDiskIO||null;
+    lastNetIO = d.lastNetIO||null;
+    lastSwap = d.lastSwap||null;
+    lastTime = d.lastTime||null;
+    containerHistories = d.containerHistories||{};
+  } catch {}
+}
+function saveCache() {
+  try {
+    let d = {
+      loadHistory,runHistory,blkioHistory,intrHistory,cpuModeHist,memHist,
+      diskioHist,netHist,swapHist,swapioHist,
+      lastDiskIO,lastNetIO,lastSwap,lastTime,
+      containerHistories
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(d));
+  } catch {}
+}
+restoreCache();
+
+function pushHist(arr, val) {
+  arr.push(val);
+  if (arr.length > HISTORY_LEN) arr.shift();
+}
+function formatMB(bytes) { return (bytes / 1024 / 1024).toFixed(1); }
+function formatBps(bps) {
+  if (!bps || isNaN(bps)) return "0 B/s";
+  if (bps > 1024*1024) return (bps/1024/1024).toFixed(1)+' MB/s';
+  if (bps > 1024) return (bps/1024).toFixed(1)+' KB/s';
+  return bps.toFixed(0)+' B/s';
+}
+
+let containers = [];
+let selectedContainerId = null;
+
+async function poll() {
+  let now = Date.now();
+  let status, host;
+  try {
+    let res = await fetch('/status');
+    status = await res.json();
+    host = status.host;
+    containers = status.docker_services || [];
+    saveContainers(containers);
+  } catch {
+    setTimeout(poll, 5000);
+    return;
+  }
+
+  // --- Cards ---
+  document.getElementById('uptime').textContent = host.uptime_human || "--";
+  document.getElementById('cpu_idle').textContent = (host.cpu.idle_percent ?? "--").toFixed(1);
+  document.getElementById('cpu_cores').textContent = host.cpu.count ?? "--";
+  document.getElementById('mem').textContent = `${host.memory.used_human} / ${host.memory.total_human}`;
+  document.getElementById('swap').textContent = `${host.swap.used_human} / ${host.swap.total_human}`;
+  document.getElementById('disk').textContent = `${host.disk.used_human} / ${host.disk.total_human}`;
+
+  // --- System load/running/blocked/interrupts ---
+  pushHist(loadHistory, [host.loadavg["1min"], host.loadavg["5min"], host.loadavg["15min"]]);
+  pushHist(runHistory, host.processes.running);
+  pushHist(blkioHistory, host.processes.blocked_io);
+  pushHist(intrHistory, host.interrupts ?? 0);
+
+  // --- CPU mode usage ---
+  let c = host.cpu.times;
+  pushHist(cpuModeHist, [
+    c.guest, c.idle, c.iowait, c.irq, c.nice, c.softirq, c.steal, c.system, c.user
+  ]);
+
+  // --- Memory usage ---
+  pushHist(memHist, [
+    host.memory.used/1024/1024,
+    host.memory.free/1024/1024,
+    (host.memory.buffers||0)/1024/1024,
+    (host.memory.cached||0)/1024/1024
+  ]);
+
+  // --- Disk IO ---
+  if (lastDiskIO) {
+    let dt = (now - lastTime)/1000;
+    pushHist(diskioHist, [
+      (host.disk_io.read_bytes - lastDiskIO.read_bytes)/dt,
+      (host.disk_io.write_bytes - lastDiskIO.write_bytes)/dt,
+      (host.disk_io.read_time && lastDiskIO.read_time) ? (host.disk_io.read_time - lastDiskIO.read_time) : 0,
+      (host.disk_io.write_time && lastDiskIO.write_time) ? (host.disk_io.write_time - lastDiskIO.write_time) : 0
+    ]);
+  } else {
+    pushHist(diskioHist, [0,0,0,0]);
+  }
+  lastDiskIO = host.disk_io;
+
+  // --- Network IO (all devices) ---
+  if (lastNetIO) {
+    let dt = (now - lastTime)/1000;
+    let vals = [];
+    for (let dev in host.net_io) {
+      let lastDev = lastNetIO[dev] || {bytes_recv:0, bytes_sent:0};
+      vals.push({
+        dev,
+        rx: (host.net_io[dev].bytes_recv - lastDev.bytes_recv)/dt,
+        tx: (host.net_io[dev].bytes_sent - lastDev.bytes_sent)/dt
+      });
+    }
+    pushHist(netHist, vals);
+  } else {
+    pushHist(netHist, []);
+  }
+  lastNetIO = host.net_io;
+
+  // --- Swap usage ---
+  pushHist(swapHist, [host.swap.used/1024/1024, host.swap.free/1024/1024]);
+  if (lastSwap) {
+    let dt = (now - lastTime)/1000;
+    pushHist(swapioHist, [
+      (host.swap.sin - lastSwap.sin)/dt,
+      (host.swap.sout - lastSwap.sout)/dt
+    ]);
+  } else {
+    pushHist(swapioHist, [0,0]);
+  }
+  lastSwap = host.swap;
+  lastTime = now;
+
+  // --- Container data ---
+  updateContainerSelect(containers);
+  updateContainerContent();
+
+  saveCache();
+  renderCharts();
+  setTimeout(poll, 5000);
+}
+
+function updateContainerSelect(containers) {
+  let sel = document.getElementById('container_select');
+  let old = sel.value;
+  sel.innerHTML = "";
+  containers.forEach((c,i) => {
+    let o = document.createElement('option');
+    o.value = c.id;
+    o.text = `${c.name} (${c.id.substring(0,12)})`;
+    sel.appendChild(o);
+  });
+  if (old && containers.some(c=>c.id===old)) {
+    sel.value = old;
+    selectedContainerId = old;
+  } else if (containers.length > 0) {
+    sel.value = containers[0].id;
+    selectedContainerId = containers[0].id;
+  } else {
+    selectedContainerId = null;
+  }
+}
+
+function saveContainers(containers) {
+  containers.forEach(c => {
+    if (!containerHistories[c.id]) containerHistories[c.id] = {cpu:[],mem:[],label:c.name};
+    let cpu = c.stats.cpu_percent || 0;
+    let mem = c.stats.mem_usage_bytes ? c.stats.mem_usage_bytes/1024/1024 : 0;
+    pushHist(containerHistories[c.id].cpu, cpu);
+    pushHist(containerHistories[c.id].mem, mem);
+    containerHistories[c.id].label = c.name;
+  });
+  // Remove old containers not present
+  let ids = containers.map(c=>c.id);
+  Object.keys(containerHistories).forEach(id=>{
+    if (!ids.includes(id)) delete containerHistories[id];
+  });
+}
+
+function updateContainerContent() {
+  let c = containers.find(c=>c.id===selectedContainerId);
+  let cHis = containerHistories[selectedContainerId] || {cpu:[],mem:[],label: c?c.name:""};
+  let cCards = document.getElementById('container-cards');
+  if (!c) {
+    cCards.innerHTML = "<div style='color:#fdc13a'>No data</div>";
+    return;
+  }
+  cCards.innerHTML = `
+    <div class="c-card">
+      <div class="c-label">Status</div>
+      <div class="c-value">${c.status}</div>
+    </div>
+    <div class="c-card">
+      <div class="c-label">Image</div>
+      <div class="c-value">${(c.image&&c.image[0]) || ""}</div>
+    </div>
+    <div class="c-card">
+      <div class="c-label">Uptime</div>
+      <div class="c-value">${c.uptime_human||"--"}</div>
+    </div>
+    <div class="c-card">
+      <div class="c-label">Restart count</div>
+      <div class="c-value">${c.restart_count||0}</div>
+    </div>
+    <div class="c-card">
+      <div class="c-label">Ports</div>
+      <div class="c-value">${formatPorts(c.ports)}</div>
+    </div>
+  `;
+  renderContainerCharts(cHis);
+}
+
+function renderCharts() {
+  // Sys load, running, blocked, interrupts
+  if (!loadChart) {
+    loadChart = new Chart(document.getElementById('load_chart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array(HISTORY_LEN).fill(''),
+        datasets: [
+          {label:'Load 1m', data:[], borderColor:'#f39c12', fill:false},
+          {label:'Load 5m', data:[], borderColor:'#16a085', fill:false},
+          {label:'Load 15m', data:[], borderColor:'#2980b9', fill:false},
+          {label:'Running', data:[], borderColor:'#e74c3c', fill:false, yAxisID:'y2'},
+          {label:'Blocked IO', data:[], borderColor:'#fdc13a', fill:false, yAxisID:'y2'},
+          {label:'Interrupts', data:[], borderColor:'#ccc', fill:false, yAxisID:'y3'}
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{legend:{position:'top'}},
+        scales: {
+          y: { beginAtZero: true, position:'left', title: {display:true, text:'Load'} },
+          y2: { beginAtZero: true, position:'right', grid:{drawOnChartArea:false}, title:{display:true,text:'Procs'} },
+          y3: { beginAtZero: true, position:'right', display:false }
+        }
+      }
+    });
+  }
+  let l1=[],l5=[],l15=[],r=[],b=[],intr=[];
+  loadHistory.forEach((l,i) => { l1.push(l[0]); l5.push(l[1]); l15.push(l[2]); r.push(runHistory[i]); b.push(blkioHistory[i]); intr.push(intrHistory[i]); });
+  loadChart.data.datasets[0].data = l1;
+  loadChart.data.datasets[1].data = l5;
+  loadChart.data.datasets[2].data = l15;
+  loadChart.data.datasets[3].data = r;
+  loadChart.data.datasets[4].data = b;
+  loadChart.data.datasets[5].data = intr;
+  loadChart.update();
+
+  // CPU mode
+  if (!cpuModeChart) {
+    cpuModeChart = new Chart(document.getElementById('cpu_mode_chart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array(HISTORY_LEN).fill(''),
+        datasets: [
+          {label:'guest',borderColor:'#e17055',data:[]},
+          {label:'idle',borderColor:'#00b894',data:[]},
+          {label:'iowait',borderColor:'#fdcb6e',data:[]},
+          {label:'irq',borderColor:'#0984e3',data:[]},
+          {label:'nice',borderColor:'#b2bec3',data:[]},
+          {label:'softirq',borderColor:'#6c5ce7',data:[]},
+          {label:'steal',borderColor:'#636e72',data:[]},
+          {label:'system',borderColor:'#fd79a8',data:[]},
+          {label:'user',borderColor:'#00cec9',data:[]},
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{legend:{position:'top'}},
+        scales:{ y: { min:0, max:100, title:{display:true,text:'%'} } }
+      }
+    });
+  }
+  let modes = Array(9).fill().map(()=>[]);
+  cpuModeHist.forEach(arr => arr.forEach((v,i)=>modes[i].push(v)));
+  cpuModeChart.data.datasets.forEach((ds,i)=>ds.data=modes[i]);
+  cpuModeChart.update();
+
+  // Memory
+  if (!memChart) {
+    memChart = new Chart(document.getElementById('mem_chart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array(HISTORY_LEN).fill(''),
+        datasets: [
+          {label:'Used',borderColor:'#e17055',data:[]},
+          {label:'Free',borderColor:'#00b894',data:[]},
+          {label:'Buffers',borderColor:'#fdcb6e',data:[]},
+          {label:'Cached',borderColor:'#0984e3',data:[]},
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{legend:{position:'top'}},
+        scales:{ y: { min:0, title:{display:true,text:'MB'} } }
+      }
+    });
+  }
+  let m1=[],m2=[],m3=[],m4=[];
+  memHist.forEach(arr => {m1.push(arr[0]);m2.push(arr[1]);m3.push(arr[2]);m4.push(arr[3]);});
+  memChart.data.datasets[0].data=m1;
+  memChart.data.datasets[1].data=m2;
+  memChart.data.datasets[2].data=m3;
+  memChart.data.datasets[3].data=m4;
+  memChart.update();
+
+  // Disk IO
+  if (!diskioChart) {
+    diskioChart = new Chart(document.getElementById('diskio_chart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array(HISTORY_LEN).fill(''),
+        datasets: [
+          {label:'Read Bps',borderColor:'#2980b9',data:[]},
+          {label:'Write Bps',borderColor:'#fdcb6e',data:[]},
+          {label:'Read Time (ms)',borderColor:'#e17055',data:[],yAxisID:'y2'},
+          {label:'Write Time (ms)',borderColor:'#00b894',data:[],yAxisID:'y2'},
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{legend:{position:'top'}},
+        scales:{
+          y:{beginAtZero:true, title:{display:true,text:'Bps'}},
+          y2:{beginAtZero:true, position:'right', grid:{drawOnChartArea:false}, title:{display:true,text:'ms'}}
+        }
+      }
+    });
+  }
+  let d1=[],d2=[],d3=[],d4=[];
+  diskioHist.forEach(arr=>{d1.push(arr[0]);d2.push(arr[1]);d3.push(arr[2]);d4.push(arr[3]);});
+  diskioChart.data.datasets[0].data=d1;
+  diskioChart.data.datasets[1].data=d2;
+  diskioChart.data.datasets[2].data=d3;
+  diskioChart.data.datasets[3].data=d4;
+  diskioChart.update();
+
+  // Network IO
+  if (!netChart) {
+    netChart = new Chart(document.getElementById('net_chart').getContext('2d'), {
+      type: 'line',
+      data: { labels:Array(HISTORY_LEN).fill(''), datasets:[] },
+      options: {
+        responsive:true,
+        plugins:{legend:{position:'top'}},
+        scales:{ y:{beginAtZero:true, title:{display:true,text:'Bps'}} }
+      }
+    });
+  }
+  // Dynamic: per device
+  let devs = {};
+  netHist.forEach(arr=>{
+    arr.forEach(dev=>{
+      if (!devs[dev.dev]) devs[dev.dev] = {rx:[],tx:[]};
+      devs[dev.dev].rx.push(dev.rx);
+      devs[dev.dev].tx.push(dev.tx);
+    });
+  });
+  netChart.data.datasets = [];
+  let colorList = ['#2980b9','#e17055','#fdcb6e','#00cec9','#fd79a8','#636e72','#b2bec3','#fdc13a','#00b894'];
+  let ci=0;
+  for (let dev in devs) {
+    netChart.data.datasets.push({
+      label:dev+' in', borderColor:colorList[ci%colorList.length], data:devs[dev].rx, fill:false
+    });
+    netChart.data.datasets.push({
+      label:dev+' out', borderColor:colorList[(ci+1)%colorList.length], data:devs[dev].tx, fill:false, borderDash:[6,4]
+    });
+    ci+=2;
+  }
+  netChart.update();
+
+  // Swap
+  if (!swapChart) {
+    swapChart = new Chart(document.getElementById('swap_chart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array(HISTORY_LEN).fill(''),
+        datasets: [
+          {label:'Used MB',borderColor:'#fdcb6e',data:[]},
+          {label:'Free MB',borderColor:'#00b894',data:[]},
+          {label:'Sin Bps',borderColor:'#e17055',data:[],yAxisID:'y2'},
+          {label:'Sout Bps',borderColor:'#2980b9',data:[],yAxisID:'y2'},
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{legend:{position:'top'}},
+        scales:{
+          y:{beginAtZero:true, title:{display:true,text:'MB'}},
+          y2:{beginAtZero:true, position:'right', grid:{drawOnChartArea:false}, title:{display:true,text:'Bps'}}
+        }
+      }
+    });
+  }
+  let s1=[],s2=[],s3=[],s4=[];
+  swapHist.forEach(arr=>{s1.push(arr[0]);s2.push(arr[1]);});
+  swapioHist.forEach(arr=>{s3.push(arr[0]);s4.push(arr[1]);});
+  swapChart.data.datasets[0].data=s1;
+  swapChart.data.datasets[1].data=s2;
+  swapChart.data.datasets[2].data=s3;
+  swapChart.data.datasets[3].data=s4;
+  swapChart.update();
+}
+
+function renderContainerCharts(cHis) {
+  // Container CPU
+  if (!cCpuChart) {
+    cCpuChart = new Chart(document.getElementById('c_cpu_chart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array(HISTORY_LEN).fill(''),
+        datasets: [
+          {label:'CPU %', data:[], borderColor:'#e17055', fill:false}
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{legend:{position:'top'}},
+        scales: { y: { min:0, max:100, title:{display:true,text:'%'} } }
+      }
+    });
+  }
+  let cpu = cHis.cpu || [];
+  cCpuChart.data.datasets[0].data = cpu;
+  cCpuChart.update();
+
+  // Container Mem
+  if (!cMemChart) {
+    cMemChart = new Chart(document.getElementById('c_mem_chart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: Array(HISTORY_LEN).fill(''),
+        datasets: [
+          {label:'Memory MB', data:[], borderColor:'#00cec9', fill:false}
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{legend:{position:'top'}},
+        scales: { y: { min:0, title:{display:true,text:'MB'} } }
+      }
+    });
+  }
+  let mem = cHis.mem || [];
+  cMemChart.data.datasets[0].data = mem;
+  cMemChart.update();
+}
+
+function formatPorts(ports) {
+  if (!ports) return "--";
+  let out = [];
+  Object.entries(ports).forEach(([containerPort, bindings]) => {
+    if (!bindings) return;
+    bindings.forEach(b => {
+      out.push(
+        `${b.HostIp && b.HostIp !== "0.0.0.0" && b.HostIp !== "::" ? b.HostIp + ":" : ""}${b.HostPort} → ${containerPort}`
+      );
+    });
+  });
+  return out.length ? out.join('<br>') : '--';
+}
+
+document.getElementById('container_select').addEventListener('change', function(e) {
+  selectedContainerId = this.value;
+  updateContainerContent();
+});
+
+poll();
+</script>
+</body>
+</html>

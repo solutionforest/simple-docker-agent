@@ -12,6 +12,12 @@ A lightweight Python-based agent that provides real-time monitoring of Docker co
 - **Fast & Lightweight**: Designed for quick responses, even with many containers.
 - **Easy Deployment**: Runs as a Docker container with minimal configuration.
 
+## Screenshot
+
+![image](https://github.com/user-attachments/assets/b7a1f2dc-6f58-4edc-bb29-ba92002c26a5)
+![image](https://github.com/user-attachments/assets/3960da14-9f7a-4b45-8e46-90d84ddcbb21)
+
+
 ---
 
 ## Quick Start
@@ -133,6 +139,43 @@ curl http://localhost:8080/status | jq
   ]
 }
 ```
+
+---
+
+## Web Dashboard
+
+A modern, interactive dashboard UI is included! Just open:
+
+    http://localhost:8080/dashboard.html
+
+in your browser after starting the agent. No extra setup is required.
+
+### Dashboard Features
+- **System Overview**: Uptime, CPU idle %, core count, memory, swap, and disk usage cards.
+- **Charts**: Real-time graphs for system load, CPU modes, memory, disk IO, network, and swap.
+- **Container Selector**: Switch between running containers to view their stats.
+- **Per-Container Stats**: Status, image, uptime, restart count, ports, and resource usage (CPU %, memory MB) with historical charts.
+- **Responsive Design**: Works on desktop and mobile.
+
+---
+
+## API
+
+- **/status**: Returns a JSON object with host and container stats. See example above for structure.
+- **/dashboard.html**: Serves the dashboard UI.
+
+---
+
+## Running Without Docker (Advanced)
+
+You can run the agent directly with Python 3.8+ (Linux recommended):
+
+```bash
+pip install flask psutil docker humanize
+python agent.py
+```
+
+Then visit http://localhost:8080/dashboard.html in your browser.
 
 ---
 
